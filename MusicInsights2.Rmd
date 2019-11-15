@@ -1,0 +1,50 @@
+---
+title: "music_insights_part_2"
+author: "Jerusalem Moore"
+date: "11/14/2019"
+output: html_document
+---
+
+```{r}
+library("knitr")
+purl("MusicInsights.Rmd", output = "part1.r")
+source("part1.r")
+
+
+```
+
+I'm attempting to find the average rating for each pseudonym I wanted a table that would include every person's entries for each song,
+in order to do this I decided to make a separate table only holding the variables I'm worried about(pseudonym and ratings), this is var_table. I found some code on stack overflow that creates an avg column for duplicate rows. Here's the link: https://stackoverflow.com/questions/17383635/average-between-duplicated-rows-in-r. The table holding the pseudonyms with their relative averages is the avg_rating table.
+
+```{r}
+library("tidyr")
+library("dplyr")
+library(data.table)
+var_table <- tibble(pseudonym = ratings$pseudonym, ratings = ratings$ratings)
+keys <- colnames(var_table)[!grepl('ratings', colnames(var_table))]
+X <- as.data.table(var_table)
+avg_rating <- X[,list(averageRatings = mean(ratings)), keys]
+```
+
+I'm now going to add this newly created column to the person table.
+```{r}
+person_and_average <-inner_join(avg_rating, person, by="pseudonym")
+```
+
+I'm now going to test any predictors of the dpendent variable averageRatings to see if they have any relation. The independent variables being used are the sex, academic_major, academic_level, and year_born
+```{r}
+library(caret)
+set.seed(385)
+as.table(as.matrix(person_and_average))
+sample_selection <- createDataPartition(person_and_average$averageRatings, p = 0.75, list = FALSE)
+train <- person_and_average[sample_selection, ]
+test <- person_and_average[-sample_selection, ]
+train_model <- lm(averageRatings ~ academic_major + year_born + academic_level + sex, data = person_and_average)
+summary(train_model)
+predictions <- train_model %>% predict(test)
+R2(predictions, test$averageRatings)
+MAE(predictions, test$averageRatings)
+
+```
+
+After summarizing the model it seems that the only attribute that seemed to have any relation to averageRatings was whether or not the student was a Computer Information Systems major
